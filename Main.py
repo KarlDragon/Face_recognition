@@ -16,10 +16,10 @@ class Client:
     def disconnect_server(self):
         self.client_socket.close()
 
-    def send_images(self, folder_path):
+    def send_images(self, folder_path, name_file):
         for filename in os.listdir(folder_path):
             
-            conn.sendall(folder_path.encode('utf-8'))
+            self.client_socket.sendall(name_file.encode('utf-8'))
             
             image_path = os.path.join(folder_path, filename)
 
@@ -215,7 +215,7 @@ class FaceRecognition:
                         self.create_folder(self.current_folder_path)
 
                         if os.path.exists(os.path.join(path, f'Warning_{self.warning_count - 1}')):
-                            send_thread = threading.Thread(target=client.send_images, args=(os.path.join(path, f'Warning_{self.warning_count - 1}',),))
+                            send_thread = threading.Thread(target=client.send_images, args=(os.path.join(path, f'Warning_{self.warning_count - 1}'),f'Warning_{self.warning_count - 1}'),)
 
                             send_thread.start()
 
@@ -230,7 +230,7 @@ class FaceRecognition:
                 cv2.imshow('Frame', frame)
 
                 if cv2.waitKey(25) & 0xFF == ord('q'):
-                    send_thread = threading.Thread(target=client.send_images, args=(os.path.join(path, f'Warning_{self.warning_count}',),))
+                    send_thread = threading.Thread(target=client.send_images, args=(os.path.join(path, f'Warning_{self.warning_count - 1}'),f'Warning_{self.warning_count - 1}'),)
                     send_thread.start()
                     break
             
@@ -263,6 +263,5 @@ if __name__ == "__main__":
              
     elif mode=='sv':
         client_num = int(input("Please type the amount of clients: "))
-
         sever = Sever()
         sever.start_server(path,IP,port,client_num)
