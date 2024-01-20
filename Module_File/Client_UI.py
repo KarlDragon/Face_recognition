@@ -1,7 +1,15 @@
-from UI_UX import UI_UX
 import tkinter as tk
 from PIL import Image, ImageTk
 
+class UI_UX:
+    def __init__(self,root):
+        self.root = root
+        self.root.title("Ứng dụng hỗ trợ kiểm tra")
+        self.root.resizable(False, False)
+        self.screen_width = self.root.winfo_screenwidth()
+        self.screen_height = self.root.winfo_screenheight()
+        self.root.iconbitmap(default=r"C:\C++\Homeworks\project\Module_File\app_img\logo_app.ico")
+        
 class Client_UI(UI_UX):
     def __init__(self,root):
         self.is_client_main=False
@@ -30,7 +38,7 @@ class Client_UI(UI_UX):
 
 
     
-    def Cl_UI(self,img):
+    def Cl_UI(self):
         if not self.is_client_UI:
             self.Cx_position = self.screen_width * 2 // 3
             self.Cy_position = 0
@@ -72,8 +80,11 @@ class Client_UI(UI_UX):
             self.login_button.place(x=225, y=self.root_height * 5 // 7 - 20)
             self.is_client_UI=True
             
-        else:
-            self.photo_image = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
-            self.img_config()
+        #else:
+            #self.photo_image = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
+            #self.img_config()
             
-
+root = tk.Tk()
+app = Client_UI(root)
+app.Cl_UI()
+root.mainloop()

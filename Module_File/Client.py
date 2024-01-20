@@ -1,6 +1,10 @@
+import cv2
 import os
+import time
 import socket
 import struct
+import threading
+import numpy as np
 
 class Client:
     def __init__(self):
@@ -8,7 +12,7 @@ class Client:
 
     def connect_server(self, IP, port):
         self.client_socket.connect((IP, port))
-
+        
     def disconnect_server(self):
         self.client_socket.close()
 
@@ -45,6 +49,7 @@ class Client:
 
     def send_folder_thread(self, path):
         try:
-            client.send_images(path)  
+            self.send_images(path)  
         except Exception as e:
             print(f"Error in send_folder_thread: {e}")
+
