@@ -1,6 +1,14 @@
-from UI_UX import UI_UX
 import tkinter as tk
 
+class UI_UX:
+    def __init__(self,root):
+        self.root = root
+        self.root.title("Ứng dụng hỗ trợ kiểm tra")
+        self.root.resizable(False, False)
+        self.screen_width = self.root.winfo_screenwidth()
+        self.screen_height = self.root.winfo_screenheight()
+        self.root.iconbitmap(default=r"C:\C++\Homeworks\project\Module_File\app_img\logo_app.ico")
+        
 class First_time_UI(UI_UX):
     def __init__(self):
         self.mode=None
