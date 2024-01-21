@@ -10,9 +10,9 @@ class UI_UX:
         self.root.iconbitmap(default=r"C:\C++\Homeworks\project\Module_File\app_img\logo_app.ico")
         
 class First_time_UI(UI_UX):
-    def __init__(self):
+    def __init__(self,root):
         self.mode=None
-        super().__init__()
+        super().__init__(root)
 
     #UI for the first
     def user_mode_button(self,mode):
@@ -20,22 +20,24 @@ class First_time_UI(UI_UX):
             self.mode_button_sv.config(relief=tk.SUNKEN)
             self.mode_button_cl.config(relief=tk.RAISED)
             self.mode=mode
-            return self.mode
+        
         if mode=="Cl":
             self.mode_button_cl.config(relief=tk.SUNKEN)
             self.mode_button_sv.config(relief=tk.RAISED)
             self.mode=mode
-            return self.mode
         
-    def user_infor(self,mode,path,IP,port):
+    def user_infor(self,mode,path,IP,port,amount):
         with open('information.txt','w') as f:
-            mode=f.writelines(mode)
+            f.writelines(mode)
             f.writelines("\n")
-            path=f.writelines(path.get())
+            f.writelines(path.get())
             f.writelines("\n")
-            IP=f.writelines(IP.get())
+            f.writelines(IP.get())
             f.writelines("\n")
-            port=f.writelines(port.get())
+            f.writelines(port.get())
+            f.writelines("\n")
+            if mode=="Sv":
+                f.writelines(amount.get())
         self.root.destroy()
         
     def FT_UI(self):
@@ -43,7 +45,7 @@ class First_time_UI(UI_UX):
         self.Sy_position = self.screen_height//2-200
 
         self.root_width = 600 
-        self.root_height = 400
+        self.root_height = 500
         
         self.root.geometry(f"{self.root_width}x{self.root_height}+{self.Sx_position}+{self.Sy_position}")
 
@@ -91,6 +93,27 @@ class First_time_UI(UI_UX):
         self.port = tk.Entry(self.port_frame, width=48)
         self.port.config(highlightthickness=1, highlightbackground="black")
         self.port.pack(side=tk.LEFT)
+
+        self.notice_frame = tk.Frame(self.frame, bg="white")
+        self.notice_frame.pack(side=tk.TOP, fill=tk.X)
+
+        tk.Label(self.notice_frame, text="                    (*Nếu bạn là máy chủ) ", height=1, font="small_font", bg="white", fg="red").pack(side=tk.LEFT)
         
-        self.mode_button = tk.Button(self.frame, text="Hoàn tất", width=20, height=3,command=lambda: self.user_infor(self.mode,self.path,self.IP,self.port), bg="#FF69B4")
+        self.amount_frame = tk.Frame(self.frame, bg="white")
+        self.amount_frame.pack(side=tk.TOP, fill=tk.X)
+        
+        tk.Label(self.amount_frame, text="                    Nhập số lượng máy khách: ", height=2, font="large_font", bg="white").pack(side=tk.LEFT)
+        
+        self.amount = tk.Entry(self.amount_frame, width=30)
+        self.amount.config(highlightthickness=1, highlightbackground="black")
+        self.amount.pack(side=tk.LEFT)
+
+        self.mode_button = tk.Button(self.frame, text="Hoàn tất", width=20, height=3,command=lambda: self.user_infor(self.mode,self.path,self.IP,self.port,self.amount), bg="#FF69B4")
         self.mode_button.pack(side=tk.TOP,pady=10)
+
+
+def run_gui_ft():
+    root = tk.Tk()
+    app = First_time_UI(root)
+    app.FT_UI()
+    root.mainloop()
