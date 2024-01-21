@@ -23,7 +23,6 @@ class Server_UI(UI_UX):
         self.is_sound=True
         self.Sound_off = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\Sound_off.jpg").resize((50,40)))
         self.Sound_on = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\Sound_on.jpg").resize((50,40)))
-        self.tk_background = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\home_bg.jpg").resize((1000,600)))
         self.tk_logo = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\logo_app_jpg.jpg").resize((50,50)))
         self.path=path
         self.IP=IP
@@ -135,13 +134,26 @@ class Server_UI(UI_UX):
         self.setting_button = tk.Button(self.top_home_frame, text="Cài đặt", width=10, height=2, command=self.setting,font=("Arial", 15), bg="#FF69B4")
         self.setting_button.pack(side=tk.RIGHT)
         
-        self.competition = tk.Frame(self.frame, bg="#FF69B4")
-        self.competition.pack(side=tk.BOTTOM, fill=tk.X)
+        self.competition_frame = tk.Frame(self.frame, bg="#FF69B4")
+        self.competition_frame.pack(side=tk.BOTTOM, fill=tk.X)
         
-        self.competition = tk.Label(self.competition, text="CUỘC THI KHOA HỌC KĨ THUẬT CẤP TỈNH DÀNH CHO HỌC SINH TRUNG HỌC NĂM HỌC 2023-2024", width=200, height=5,font=("Helvetica",10,"bold"), bg="#FF69B4")
+        self.competition = tk.Label(self.competition_frame, text="CUỘC THI KHOA HỌC KĨ THUẬT CẤP TỈNH DÀNH CHO HỌC SINH TRUNG HỌC NĂM HỌC 2023-2024", width=200, height=5,font=("Helvetica",10,"bold"), bg="#FF69B4")
         self.competition.pack(side=tk.LEFT)
+
+        self.top_home_frame_info = self.top_home_frame.winfo_geometry()
+        self.top_home_frame_x, self.top_home_frame_y = map(int, self.top_home_frame_info.split('+')[1:3])
+
+        self.competition_frame_info = self.competition_frame.winfo_geometry()
+        self.competition_frame_x, self.competition_frame_y = map(int, self.competition_frame_info.split('+')[1:3])
+
+        self.frame_info = self.frame.winfo_geometry()
+        self.frame_info_x, self.frame_info_y = map(int, self.frame_info.split('+')[1:3])
         
-        tk.Label(self.frame, image=self.tk_background).pack(side=tk.TOP,fill=tk.BOTH)
+        self.distance_x = self.root_width - self.frame_info_x
+        self.distance_y = self.root_height - self.competition_frame_y - self.top_home_frame_y
+        
+        self.tk_background = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\home_bg.jpg").resize((self.distance_x,self.distance_y)))
+        tk.Label(self.frame, image=self.tk_background).pack(side=tk.TOP,fill=tk.BOTH, expand=True)
         
     def cam(self, cam_num):
         for widget in self.frame.winfo_children():
@@ -217,7 +229,7 @@ class Server_UI(UI_UX):
 
         
         
-    def SV_UI(self,cam_num,folder_num):
+    def SV_UI(self,amount):
         self.Sx_position = -10
         self.Sy_position = 0
 
@@ -236,10 +248,10 @@ class Server_UI(UI_UX):
         self.home_button = tk.Button(self.left_frame, text="Trang chủ", width=15, height=2,command=self.home,font=("Arial", 15), bg="#FF69B4")
         self.home_button.pack(side=tk.TOP)
         
-        self.cam_button = tk.Button(self.left_frame, text="Cam đang chạy", width=15, height=2,command=lambda: self.cam(cam_num),font=("Arial", 15), bg="#FF69B4")
+        self.cam_button = tk.Button(self.left_frame, text="Cam đang chạy", width=15, height=2,command=lambda: self.cam(amount),font=("Arial", 15), bg="#FF69B4")
         self.cam_button.pack(side=tk.TOP)
         
-        self.history_button = tk.Button(self.left_frame, text="Lịch sử", width=15, height=2,command=lambda: self.history(folder_num),font=("Arial", 15), bg="#FF69B4")
+        self.history_button = tk.Button(self.left_frame, text="Lịch sử", width=15, height=2,command=lambda: self.history(amount),font=("Arial", 15), bg="#FF69B4")
         self.history_button.pack(side=tk.TOP)
         
         
@@ -315,5 +327,5 @@ class Server:
 def run_gui_sv(path,IP,port,amount):
     root = tk.Tk()
     app = Server_UI(root,path,IP,port,amount)
-    app.SV_UI(2,2)
+    app.SV_UI(amount)
     root.mainloop()
