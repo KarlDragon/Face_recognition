@@ -1,8 +1,15 @@
 import tkinter as tk
 from PIL import Image, ImageTk
+import os
+import cv2
+import time
+import socket
+import struct
+import threading
+import numpy as np
 
 class UI_UX:
-    def __init__(self,root):
+    def __init__(self, root):
         self.root = root
         self.root.title("Ứng dụng hỗ trợ kiểm tra")
         self.root.resizable(False, False)
@@ -11,13 +18,17 @@ class UI_UX:
         self.root.iconbitmap(default=r"C:\C++\Homeworks\project\Module_File\app_img\logo_app.ico")
         
 class Server_UI(UI_UX):
-    def __init__(self,root):
+    def __init__(self,root,path,IP,port,amount):
         check_button=False
         self.is_sound=True
-        self.Sound_off = ImageTk.PhotoImage(Image.open(r"app_img\Sound_off.jpg").resize((50,40)))
-        self.Sound_on = ImageTk.PhotoImage(Image.open(r"app_img\Sound_on.jpg").resize((50,40)))
-        self.tk_background = ImageTk.PhotoImage(Image.open(r"app_img\logo_THPT.jpg").resize((1700,1000)))
-        self.tk_logo = ImageTk.PhotoImage(Image.open(r"app_img\logo_app_jpg.jpg").resize((50,50)))
+        self.Sound_off = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\Sound_off.jpg").resize((50,40)))
+        self.Sound_on = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\Sound_on.jpg").resize((50,40)))
+        self.tk_background = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\home_bg.jpg").resize((1700,1000)))
+        self.tk_logo = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\logo_app_jpg.jpg").resize((50,50)))
+        self.path=path
+        self.IP=IP
+        self.port=port
+        self.amount=amount
         super().__init__(root)
 
     def show_cam(self):
@@ -109,7 +120,14 @@ class Server_UI(UI_UX):
         for widget in self.frame.winfo_children():
             widget.destroy()
             
-        tk.Label(self.frame, image=self.tk_background, height=1000, width=1900).place(x=-80, y=50)
+        tk.Label(self.frame, image=self.tk_background, height=840, width=1950).place(x=-100, y=50)
+
+        self.competition = tk.Frame(self.frame, bg="#FF69B4")
+        self.competition.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        self.competition = tk.Label(self.competition, text="CUỘC THI KHOA HỌC KĨ THUẬT CẤP TỈNH DÀNH CHO HỌC SINH TRUNG HỌC NĂM HỌC 2023-2024", width=200, height=5,font=("Helvetica",10,"bold"), bg="#FF69B4")
+        self.competition.pack(side=tk.LEFT)
+
         
         self.top_home_frame = tk.Frame(self.frame, bg="#FF69B4")
         self.top_home_frame.pack(side=tk.TOP, fill=tk.X)
@@ -161,6 +179,7 @@ class Server_UI(UI_UX):
     def history(self,folder_num):
         for widget in self.frame.winfo_children():
             widget.destroy()
+            
         tk.Label(self.frame, text="Lịch sử", height=2, width=177, bg="pink",font=("Arial", 15)).place(x=10, y=10)
         tk.Label(self.frame, text="Nhập số báo danh", height=2, width=40, bg="#FFF0F5",font=("Arial", 15)).place(x=900, y=62)
         tk.Label(self.frame, text="Danh sách thư mục", height=2, width=35, bg="pink",font=("Arial", 15)).place(x=10, y=50)
@@ -204,19 +223,23 @@ class Server_UI(UI_UX):
         self.Sy_position = 0
 
         self.root_width = self.screen_width 
-        self.root_height = self.screen_height
+        self.root_height = self.screen_height-50
         
         self.root.geometry(f"{self.root_width}x{self.root_height}+{self.Sx_position}+{self.Sy_position}")
 
         self.top_frame = tk.Frame(self.root, bg="white")
         self.top_frame.pack(side=tk.TOP, fill=tk.X)
+        
         tk.Label(self.top_frame, text="Trung học phổ thông Ba Gia", height=2, fg="black", font=("Helvetica", 15, "bold"), bg="#FF66CC").pack(fill=tk.X)
         self.left_frame = tk.Frame(self.root, bg="pink")
         self.left_frame.pack(side=tk.LEFT, fill=tk.Y)
+        
         self.home_button = tk.Button(self.left_frame, text="Trang chủ", width=15, height=2,command=self.home,font=("Arial", 15), bg="#FF69B4")
         self.home_button.pack(side=tk.TOP)
+        
         self.cam_button = tk.Button(self.left_frame, text="Cam đang chạy", width=15, height=2,command=lambda: self.cam(cam_num),font=("Arial", 15), bg="#FF69B4")
         self.cam_button.pack(side=tk.TOP)
+        
         self.history_button = tk.Button(self.left_frame, text="Lịch sử", width=15, height=2,command=lambda: self.history(folder_num),font=("Arial", 15), bg="#FF69B4")
         self.history_button.pack(side=tk.TOP)
         
@@ -224,4 +247,74 @@ class Server_UI(UI_UX):
         self.frame = tk.Frame(self.root, bg="#FFF0F5")
         self.frame.pack(fill=tk.BOTH, expand=True)
         self.home()
+        
+        self.server = Server(self.path, self.IP, self.port,self.amount)
+        threading.Thread(target=self.server.start_server).start()
 
+class Server:
+    def __init__(self,path,IP,port,amount):
+        self.path=path
+        self.IP=IP
+        self.port=port
+        self.amount=amount
+        self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+
+    def handle_client(self, conn, addr):
+        ip_address, port_number = addr
+        print(f"Connection from {addr}")
+        folder_path = os.path.join(self.path, ip_address)
+        self.create_folder(folder_path)
+        while True:
+            folder_name = conn.recv(1024).decode('utf-8')
+            save_folder = os.path.join(folder_path, folder_name)
+            self.create_folder(save_folder)
+
+            size_data = conn.recv(4)
+            if not size_data:
+                break
+
+            size = struct.unpack("!L", size_data)[0]
+
+            image_data = b""
+            while len(image_data) < size:
+                chunk = conn.recv(size - len(image_data))
+                if not chunk:
+                    break
+                image_data += chunk
+
+            if not image_data:
+                break
+
+            image = cv2.imdecode(np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
+
+            filename = f"image_{time.time()}.jpg"
+            image_path = os.path.join(save_folder, filename)
+            cv2.imwrite(image_path, image)
+            print(f"Image received and saved as: {image_path}")
+            print(f"Recv: {len(image_data)} bytes")
+
+            conn.sendall(b"ACK")
+
+        conn.close()
+        print(f"Connection from {addr} closed")
+
+    def create_folder(self, path):
+        os.makedirs(path, exist_ok=True)
+
+    def start_server(self):
+        self.server_socket.bind((self.IP, self.port))
+        self.server_socket.listen(self.amount)
+
+        print("Server is listening on port ")
+
+        while True:
+            conn, addr = self.server_socket.accept()
+
+            client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
+            client_thread.start()
+
+def run_gui_sv(path,IP,port,amount):
+    root = tk.Tk()
+    app = Server_UI(root,path,IP,port,amount)
+    app.SV_UI(2,2)
+    root.mainloop()

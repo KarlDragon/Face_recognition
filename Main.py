@@ -1,54 +1,47 @@
 import os
 import threading
 import tkinter as tk
-from Module_File import Server_UI, Client_UI, First_time_UI, FaceRecognition
+from Module_File import Server_UI, Client_UI, First_time_UI
+from queue import Queue
 
 class AppManager:
     def __init__(self):
         self.is_txt = os.path.exists('information.txt')
 
-    def run_feature(self, path, IP, port):
-        feature = FaceRecognition.FaceRecognition()
-        feature.run_face_recognition(path, IP, port)
+    def run_client(self,path, IP, port):
+        frame_queue = Queue()
 
-    def run_client_ui(self):
-        root = tk.Tk()
-        app = Client_UI.Client_UI(root)
-        app.Cl_UI()
-        root.mainloop()
+        gui_thread = threading.Thread(target=Client_UI.run_gui_cl, args=(frame_queue,path, IP, port,))
+        gui_thread.start()
 
-    def run_server_ui(self):
-        app = Server_UI.Server_UI(2, 2)
+        gui_thread.join()
+        
+    def run_server(self,path, IP, port,amount):
+        gui_thread = threading.Thread(target=Server_UI.run_gui_sv, args=(path, IP, port,amount,))
+        gui_thread.start()
 
-    def run_first_time_ui(self):
-        app = First_time_UI.First_time_UI()
+        gui_thread.join()
 
-    def start_threads(self, mode, path, IP, port):
-        if mode == "Cl":
-            thread_ui = threading.Thread(target=self.run_client_ui)
-            thread_feature = threading.Thread(target=self.run_feature, args=(path, IP, port))
 
-            thread_ui.start()
-            thread_feature.start()
-
-        elif mode == "Sv":
-            thread_server = threading.Thread(target=self.run_server_ui)
-            thread_server.start()
-
-        else:
-            thread_first_time_ui = threading.Thread(target=self.run_first_time_ui)
-            thread_first_time_ui.start()
-
+    def run_first(self):
+        First_time_UI.run_gui_ft()
+        
 if __name__ == "__main__":
+    
     app_manager = AppManager()
 
+    if not app_manager.is_txt:
+        app_manager.run_first()
+    
     if app_manager.is_txt:
         with open('information.txt', 'r') as f:
             mode = f.readline().replace('\n', '')
             path = f.readline().replace('\n', '')
             IP = f.readline().replace('\n', '')
             port = int(f.readline())
-
-        app_manager.start_threads(mode, path, IP, port)
-    else:
-        app_manager.start_threads("", "", "", 0)
+            if mode=="Sv":
+                amount = int(f.readline())
+        if mode=="Cl":
+            app_manager.run_client(path, IP, port)
+        if mode=="Sv":
+            app_manager.run_server(path, IP, port,amount)
