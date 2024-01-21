@@ -12,7 +12,6 @@ from queue import Queue
 class Client:
     def __init__(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
     def connect_server(self, IP, port):
         self.client_socket.connect((IP, port))
         
@@ -41,6 +40,12 @@ class Client:
 
         print("All images sent successfully!")
 
+    def send_info(self ,name,num,class_):
+        self.client_socket.sendall(name.encode('utf-8'))
+        self.client_socket.sendall(num.encode('utf-8'))
+        self.client_socket.sendall(class_.encode('utf-8'))
+        print("Sending info successfully!")
+        
     def receive_acknowledgment(self):
         ack_data = self.client_socket.recv(3)
         
@@ -98,8 +103,7 @@ class Client_UI(UI_UX):
         tk.Label(self.frame, text=time_left, font=("Helvetica", 24)).place(x=450, y=10)
         tk.Label(self.frame, text=f"Tên: {name} Lớp: {class_} Số báo danh: {num}", font=("Helvetica", 15)).place(x=0, y=270)
 
-        # Instantiate FaceRecognition only after the button is clicked
-        self.face_recognition_instance = FaceRecognition(self, self.queue, self.path, self.IP, self.port)
+        self.face_recognition_instance = FaceRecognition(self, self.queue, self.path, self.IP, self.port,name,num,class_)
         threading.Thread(target=self.face_recognition_instance.run_face_recognition).start()
 
     def create_ui(self):
@@ -151,7 +155,7 @@ class Client_UI(UI_UX):
                 self.img_config(img)
 
 class FaceRecognition:
-    def __init__(self, client_ui, queue, path, IP, port):
+    def __init__(self, client_ui, queue, path, IP, port, name, num, class_):
         self.client_ui = client_ui
         self.cap = cv2.VideoCapture(0)
         self.warning_count = 1
@@ -167,7 +171,10 @@ class FaceRecognition:
         self.path = path
         self.IP = IP
         self.port = port
-
+        self.name=name
+        self.num=num
+        self.class_=class_
+        
     def set_camera_properties(self, width, height):
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
@@ -192,6 +199,7 @@ class FaceRecognition:
         try:
             client = Client()
             client.connect_server(self.IP, self.port)
+            client.send_info(self.name,self.num,self.class_)
             while self.cap.isOpened():
                 ret, frame = self.cap.read()
                 size = frame.shape
