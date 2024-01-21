@@ -23,7 +23,7 @@ class Server_UI(UI_UX):
         self.is_sound=True
         self.Sound_off = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\Sound_off.jpg").resize((50,40)))
         self.Sound_on = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\Sound_on.jpg").resize((50,40)))
-        self.tk_background = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\home_bg.jpg").resize((1700,1000)))
+        self.tk_background = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\home_bg.jpg").resize((1000,600)))
         self.tk_logo = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\logo_app_jpg.jpg").resize((50,50)))
         self.path=path
         self.IP=IP
@@ -119,16 +119,7 @@ class Server_UI(UI_UX):
     def home(self):
         for widget in self.frame.winfo_children():
             widget.destroy()
-            
-        tk.Label(self.frame, image=self.tk_background, height=840, width=1950).place(x=-100, y=50)
-
-        self.competition = tk.Frame(self.frame, bg="#FF69B4")
-        self.competition.pack(side=tk.BOTTOM, fill=tk.X)
-        
-        self.competition = tk.Label(self.competition, text="CUỘC THI KHOA HỌC KĨ THUẬT CẤP TỈNH DÀNH CHO HỌC SINH TRUNG HỌC NĂM HỌC 2023-2024", width=200, height=5,font=("Helvetica",10,"bold"), bg="#FF69B4")
-        self.competition.pack(side=tk.LEFT)
-
-        
+           
         self.top_home_frame = tk.Frame(self.frame, bg="#FF69B4")
         self.top_home_frame.pack(side=tk.TOP, fill=tk.X)
 
@@ -143,7 +134,15 @@ class Server_UI(UI_UX):
 
         self.setting_button = tk.Button(self.top_home_frame, text="Cài đặt", width=10, height=2, command=self.setting,font=("Arial", 15), bg="#FF69B4")
         self.setting_button.pack(side=tk.RIGHT)
-
+        
+        self.competition = tk.Frame(self.frame, bg="#FF69B4")
+        self.competition.pack(side=tk.BOTTOM, fill=tk.X)
+        
+        self.competition = tk.Label(self.competition, text="CUỘC THI KHOA HỌC KĨ THUẬT CẤP TỈNH DÀNH CHO HỌC SINH TRUNG HỌC NĂM HỌC 2023-2024", width=200, height=5,font=("Helvetica",10,"bold"), bg="#FF69B4")
+        self.competition.pack(side=tk.LEFT)
+        
+        tk.Label(self.frame, image=self.tk_background).pack(side=tk.TOP,fill=tk.BOTH)
+        
     def cam(self, cam_num):
         for widget in self.frame.winfo_children():
             widget.destroy()
