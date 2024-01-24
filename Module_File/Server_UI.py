@@ -273,6 +273,18 @@ class Server:
     def handle_client(self, conn, addr):
         ip_address, port_number = addr
         print(f"Connection from {addr}")
+        
+        name = conn.recv(1024).decode('utf-8')
+        print(f"Received name: {name}")
+
+        time.sleep(1)  # Introduce a small delay to ensure proper order
+        num = conn.recv(1024).decode('utf-8')
+        print(f"Received num: {num}")
+
+        time.sleep(1)  # Introduce a small delay to ensure proper order
+        class_ = conn.recv(1024).decode('utf-8')
+        print(f"Received class: {class_}")
+        
         folder_path = os.path.join(self.path, ip_address)
         self.create_folder(folder_path)
         while True:
