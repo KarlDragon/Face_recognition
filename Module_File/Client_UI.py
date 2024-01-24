@@ -41,10 +41,19 @@ class Client:
         print("All images sent successfully!")
 
     def send_info(self ,name,num,class_):
-        self.client_socket.sendall(name.encode('utf-8'))
-        self.client_socket.sendall(num.encode('utf-8'))
-        self.client_socket.sendall(class_.encode('utf-8'))
-        print("Sending info successfully!")
+        try:
+            self.client_socket.sendall(name.encode('utf-8'))
+            time.sleep(1)  # Introduce a small delay to ensure proper order
+            self.client_socket.sendall(num.encode('utf-8'))
+            time.sleep(1)
+            self.client_socket.sendall(class_.encode('utf-8'))
+
+            
+            print(f"Sending {name}, {num}, {class_}")
+            print("Sending info successfully!")
+
+        except Exception as e:
+            print(f"Error in send_info: {e}")
         
     def receive_acknowledgment(self):
         ack_data = self.client_socket.recv(3)
