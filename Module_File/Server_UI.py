@@ -15,19 +15,21 @@ class UI_UX:
         self.root.resizable(False, False)
         self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
-        self.root.iconbitmap(default=r"C:\C++\Homeworks\project\Module_File\app_img\logo_app.ico")
+        self.root.iconbitmap(default=r"C:\Python32\CV2\Face_recognition-main\Module_File\app_img\logo_app.ico")
         
 class Server_UI(UI_UX):
     def __init__(self,root,path,IP,port,amount):
         check_button=False
         self.is_sound=True
-        self.Sound_off = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\Sound_off.jpg").resize((50,40)))
-        self.Sound_on = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\Sound_on.jpg").resize((50,40)))
-        self.tk_logo = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\logo_app_jpg.jpg").resize((50,50)))
+        self.Sound_off = ImageTk.PhotoImage(Image.open(r"C:\Python32\CV2\Face_recognition-main\Module_File\app_img\Sound_off.jpg").resize((50,40)))
+        self.Sound_on = ImageTk.PhotoImage(Image.open(r"C:\Python32\CV2\Face_recognition-main\Module_File\app_img\Sound_on.jpg").resize((50,40)))
+        self.tk_background = ImageTk.PhotoImage(Image.open(r"C:\Python32\CV2\Face_recognition-main\Module_File\app_img\home_bg.jpg").resize((1000,600)))
+        self.tk_logo = ImageTk.PhotoImage(Image.open(r"C:\Python32\CV2\Face_recognition-main\Module_File\app_img\logo_app_jpg.jpg").resize((50,50)))
         self.path=path
         self.IP=IP
         self.port=port
         self.amount=amount
+        self.client_buttons = []
         super().__init__(root)
 
     def show_cam(self):
@@ -68,7 +70,7 @@ class Server_UI(UI_UX):
         else:
             self.sound_button.config(image=self.Sound_on)
 
-        self.is_sound= not self.is_sound
+        self.is_sound = not self.is_sound
     
     def setting(self):
         for widget in self.frame.winfo_children():
@@ -134,26 +136,18 @@ class Server_UI(UI_UX):
         self.setting_button = tk.Button(self.top_home_frame, text="Cài đặt", width=10, height=2, command=self.setting,font=("Arial", 15), bg="#FF69B4")
         self.setting_button.pack(side=tk.RIGHT)
         
-        self.competition_frame = tk.Frame(self.frame, bg="#FF69B4")
-        self.competition_frame.pack(side=tk.BOTTOM, fill=tk.X)
+        self.competition = tk.Frame(self.frame, bg="#FF69B4")
+        self.competition.pack(side=tk.BOTTOM, fill=tk.X)
         
-        self.competition = tk.Label(self.competition_frame, text="CUỘC THI KHOA HỌC KĨ THUẬT CẤP TỈNH DÀNH CHO HỌC SINH TRUNG HỌC NĂM HỌC 2023-2024", width=200, height=5,font=("Helvetica",10,"bold"), bg="#FF69B4")
+        self.competition = tk.Label(self.competition, text="CUỘC THI KHOA HỌC KĨ THUẬT CẤP TỈNH DÀNH CHO HỌC SINH TRUNG HỌC NĂM HỌC 2023-2024", width=200, height=5,font=("Helvetica",10,"bold"), bg="#FF69B4")
         self.competition.pack(side=tk.LEFT)
-
-        self.top_home_frame_info = self.top_home_frame.winfo_geometry()
-        self.top_home_frame_x, self.top_home_frame_y = map(int, self.top_home_frame_info.split('+')[1:3])
-
-        self.competition_frame_info = self.competition_frame.winfo_geometry()
-        self.competition_frame_x, self.competition_frame_y = map(int, self.competition_frame_info.split('+')[1:3])
-
-        self.frame_info = self.frame.winfo_geometry()
-        self.frame_info_x, self.frame_info_y = map(int, self.frame_info.split('+')[1:3])
         
-        self.distance_x = self.root_width - self.frame_info_x
-        self.distance_y = self.root_height - self.competition_frame_y - self.top_home_frame_y
-        
-        self.tk_background = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\home_bg.jpg").resize((self.distance_x,self.distance_y)))
-        tk.Label(self.frame, image=self.tk_background).pack(side=tk.TOP,fill=tk.BOTH, expand=True)
+        tk.Label(self.frame, image=self.tk_background).pack(side=tk.TOP,fill=tk.BOTH)
+
+    def update_client_buttons(self, name, num, class_):
+        button_text = f"Cam: {name}_{class_}_{num}"
+        self.client_buttons.append(button_text)
+        print(self.client_buttons)
         
     def cam(self, cam_num):
         for widget in self.frame.winfo_children():
@@ -172,11 +166,11 @@ class Server_UI(UI_UX):
         cam_frame = tk.Frame(canvas, bg="pink")
         canvas.create_window((0, 0), window=cam_frame, anchor=tk.NW)
 
-        cam_list = [0 for _ in range(cam_num)]
-        lst=['HuynhGiaThien_110256','DangHoangPhong_110357']
-        for i in range(cam_num):
-            cam_list[i] = tk.Button(cam_frame, text=f"Cam:{lst[i]}", width=35, height=1, command=self.show_cam,font=("Arial", 15), bg="#FF69B4")
-            cam_list[i].pack(side=tk.TOP, pady=5)
+
+        for i in range(len(self.client_buttons)):
+            
+            tk.Button(cam_frame, text=f"Cam:{self.client_buttons[i]}", width=35, height=1, command=self.show_cam,font=("Arial", 15), bg="#FF69B4").pack(side=tk.TOP, pady=5)
+
 
         cam_frame.update_idletasks()  # Cập nhật cam_frame để có chiều cao chính xác cho canvas
 
@@ -209,10 +203,9 @@ class Server_UI(UI_UX):
         cam_frame = tk.Frame(canvas, bg="pink")
         canvas.create_window((0, 0), window=cam_frame, anchor=tk.NW)
         
-        folder_list = [0 for _ in range(folder_num)]
-        lst=['HuynhGiaThien_11B12_110256','DangHoangPhong_11B12_110357']
+        folder_list = [None for _ in range(folder_num)]
         for i in range(folder_num):
-            folder_list[i] = tk.Button(cam_frame, text=f"folder:{lst[i]}", width=35, height=1, command=self.show_cam,font=("Arial", 15), bg="#FF69B4")
+            folder_list[i] = tk.Button(cam_frame, text=f"folder:{folder_list[i]}", width=35, height=1, command=self.show_cam,font=("Arial", 15), bg="#FF69B4")
             folder_list[i].pack(side=tk.TOP, pady=5)
 
         search_button=tk.Button(self.frame, text="Tìm kiếm",height=1, command=lambda: self.show_folder(self.search,folder_list,canvas))
@@ -259,7 +252,8 @@ class Server_UI(UI_UX):
         self.frame.pack(fill=tk.BOTH, expand=True)
         self.home()
         
-        self.server = Server(self.path, self.IP, self.port,self.amount)
+        self.server = Server(self.path, self.IP, self.port, self.amount)
+        self.server.set_server_ui_instance(self)  # Pass the Server_UI instance to the Server class
         threading.Thread(target=self.server.start_server).start()
 
 class Server:
@@ -269,8 +263,15 @@ class Server:
         self.port=port
         self.amount=amount
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.server_ui_instance = None
 
+    def set_server_ui_instance(self, server_ui_instance):
+        self.server_ui_instance = server_ui_instance
+    def get_img_thread(self):
+
+        
     def handle_client(self, conn, addr):
+        
         ip_address, port_number = addr
         print(f"Connection from {addr}")
         
@@ -284,9 +285,14 @@ class Server:
         time.sleep(1)  # Introduce a small delay to ensure proper order
         class_ = conn.recv(1024).decode('utf-8')
         print(f"Received class: {class_}")
+        main_folder=f"{name}_{class_}_{num}"
+        if self.server_ui_instance:
+            self.server_ui_instance.update_client_buttons(name, num, class_)
+            
+        folder_path = os.path.join(self.path, main_folder)
         
-        folder_path = os.path.join(self.path, ip_address)
         self.create_folder(folder_path)
+        
         while True:
             folder_name = conn.recv(1024).decode('utf-8')
             save_folder = os.path.join(folder_path, folder_name)
@@ -336,8 +342,8 @@ class Server:
             client_thread = threading.Thread(target=self.handle_client, args=(conn, addr))
             client_thread.start()
 
-def run_gui_sv(path,IP,port,amount):
+def run_gui_sv(path, IP, port, amount):
     root = tk.Tk()
-    app = Server_UI(root,path,IP,port,amount)
+    app = Server_UI(root, path, IP, port, amount)
     app.SV_UI(amount)
     root.mainloop()
