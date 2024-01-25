@@ -254,6 +254,7 @@ class Server_UI(UI_UX):
         
         self.server = Server(self.path, self.IP, self.port, self.amount)
         self.server.set_server_ui_instance(self)  # Pass the Server_UI instance to the Server class
+        
         threading.Thread(target=self.server.start_server).start()
 
 class Server:
@@ -267,14 +268,88 @@ class Server:
 
     def set_server_ui_instance(self, server_ui_instance):
         self.server_ui_instance = server_ui_instance
-    def get_img_thread(self):
+        
+    def folder_thread(self, conn, addr, name, num, class_):
+        try:
+            main_folder = f"{name}_{class_}_{num}"
+            folder_path = os.path.join(self.path, main_folder)
 
-        
+            if self.server_ui_instance:
+                self.server_ui_instance.update_client_buttons(name, num, class_)
+
+            self.create_folder(folder_path)
+
+            while True:
+                folder_name = conn.recv(1024).decode('utf-8')
+                save_folder = os.path.join(folder_path, folder_name)
+                self.create_folder(save_folder)
+
+                size_data = conn.recv(4)
+                if not size_data:
+                    break
+
+                size = struct.unpack("!L", size_data)[0]
+
+                image_data = b""
+                while len(image_data) < size:
+                    chunk = conn.recv(size - len(image_data))
+                    if not chunk:
+                        break
+                    image_data += chunk
+
+                if not image_data:
+                    break
+
+                image = cv2.imdecode(np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
+
+                filename = f"image_{time.time()}.jpg"
+                image_path = os.path.join(save_folder, filename)
+                cv2.imwrite(image_path, image)
+                print(f"Image received and saved as: {image_path}")
+                print(f"Recv: {len(image_data)} bytes")
+
+                conn.sendall(b"ACK")
+
+        except Exception as e:
+            print(f"Error in handle_folder_thread: {e}")
+
+        finally:
+            conn.close()
+            print(f"Connection from {addr} closed")
+
+    def image_loop_thread(self, conn, addr, name, num, class_):
+        try:
+            while True:
+                size_data = conn.recv(4)
+                if not size_data:
+                    break
+
+                size = struct.unpack("!L", size_data)[0]
+
+                image_data = b""
+                while len(image_data) < size:
+                    chunk = conn.recv(size - len(image_data))
+                    if not chunk:
+                        break
+                    image_data += chunk
+
+                if not image_data:
+                    break
+
+                image = cv2.imdecode(np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
+                # Process the image as needed
+
+        except Exception as e:
+            print(f"Error in handle_image_loop_thread: {e}")
+
+        finally:
+            conn.close()
+            print(f"Connection from {addr} closed")
+
     def handle_client(self, conn, addr):
-        
         ip_address, port_number = addr
         print(f"Connection from {addr}")
-        
+
         name = conn.recv(1024).decode('utf-8')
         print(f"Received name: {name}")
 
@@ -285,47 +360,14 @@ class Server:
         time.sleep(1)  # Introduce a small delay to ensure proper order
         class_ = conn.recv(1024).decode('utf-8')
         print(f"Received class: {class_}")
-        main_folder=f"{name}_{class_}_{num}"
-        if self.server_ui_instance:
-            self.server_ui_instance.update_client_buttons(name, num, class_)
-            
-        folder_path = os.path.join(self.path, main_folder)
-        
-        self.create_folder(folder_path)
-        
-        while True:
-            folder_name = conn.recv(1024).decode('utf-8')
-            save_folder = os.path.join(folder_path, folder_name)
-            self.create_folder(save_folder)
 
-            size_data = conn.recv(4)
-            if not size_data:
-                break
+        # Start the thread for handling folders
+        folder_thread = threading.Thread(target=self.folder_thread, args=(conn, addr, name, num, class_))
+        folder_thread.start()
 
-            size = struct.unpack("!L", size_data)[0]
-
-            image_data = b""
-            while len(image_data) < size:
-                chunk = conn.recv(size - len(image_data))
-                if not chunk:
-                    break
-                image_data += chunk
-
-            if not image_data:
-                break
-
-            image = cv2.imdecode(np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
-
-            filename = f"image_{time.time()}.jpg"
-            image_path = os.path.join(save_folder, filename)
-            cv2.imwrite(image_path, image)
-            print(f"Image received and saved as: {image_path}")
-            print(f"Recv: {len(image_data)} bytes")
-
-            conn.sendall(b"ACK")
-
-        conn.close()
-        print(f"Connection from {addr} closed")
+        # Start the thread for handling the image loop
+        image_loop_thread = threading.Thread(target=self.image_loop_thread, args=(conn, addr, name, num, class_))
+        image_loop_thread.start()
 
     def create_folder(self, path):
         os.makedirs(path, exist_ok=True)
