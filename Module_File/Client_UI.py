@@ -18,6 +18,10 @@ class Client:
     def disconnect_server(self):
         self.client_socket.close()
 
+    def send_info(self, name, num, class_):
+        info_string = f"{name},{num},{class_}"
+        self.client_socket.sendall(info_string.encode('utf-8'))
+
     def send_images(self, folder_path, name_file):
         for filename in os.listdir(folder_path):
             
@@ -40,20 +44,38 @@ class Client:
 
         print("All images sent successfully!")
 
-    def send_info(self ,name,num,class_):
+
+    def send_img_loop(self, img):
+        try:
+            _, img_encoded = cv2.imencode('.jpg', img)
+            image_data = img_encoded.tobytes()
+
+            size = struct.pack("!I", len(image_data))
+
+            self.client_socket.sendall(size)
+            self.client_socket.sendall(image_data)
+
+            print("Sent image successfully")
+
+        except Exception as e:
+            print(f"Error in send_img_loop: {e}")
+
+    
+    def send_info(self, name, num, class_):
         try:
             self.client_socket.sendall(name.encode('utf-8'))
             time.sleep(1)  # Introduce a small delay to ensure proper order
             self.client_socket.sendall(num.encode('utf-8'))
             time.sleep(1)
             self.client_socket.sendall(class_.encode('utf-8'))
-
+            time.sleep(1)
             
             print(f"Sending {name}, {num}, {class_}")
             print("Sending info successfully!")
 
         except Exception as e:
             print(f"Error in send_info: {e}")
+
         
     def receive_acknowledgment(self):
         ack_data = self.client_socket.recv(3)
@@ -98,9 +120,9 @@ class Client_UI(UI_UX):
             self.back_ground.configure(image=self.photo_image)
 
     def client_main(self):
-        name = self.name_user.get()
-        num = self.user_num.get()
-        class_ = self.user_class.get()
+        name = str(self.name_user.get())
+        num = str(self.user_num.get())
+        class_ = str(self.user_class.get())
         for widget in self.frame.winfo_children():
             widget.destroy()
 
@@ -284,6 +306,7 @@ class FaceRecognition:
                         # Prepare for the next folder
                         self.current_folder_path = None  # Reset to None
 
+                
                 self.client_ui.img_config(frame)
 
                 if cv2.waitKey(25) & 0xFF == ord('q'):
@@ -294,7 +317,10 @@ class FaceRecognition:
                                                            f'Warning_{self.warning_count - 1}'), )
                         send_thread.start()
                     break
-
+                loop_thread = threading.Thread(target=client.send_img_loop,
+                                                       args=(frame , )
+                loop_thread.start()
+                                               
             # Release the video capture object
             self.cap.release()
 
