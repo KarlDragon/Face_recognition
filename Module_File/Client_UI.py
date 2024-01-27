@@ -8,11 +8,10 @@ import struct
 import threading
 import numpy as np
 from queue import Queue 
-
+import pickle
 class Client:
     def __init__(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
     def connect_server(self, IP, port):
         self.client_socket.connect((IP, port))
         
@@ -40,7 +39,28 @@ class Client:
                 break
 
         print("All images sent successfully!")
+        
+    def video_loop(self,frame):
+        data = pickle.dumps(frame)
 
+        # Gửi kích thước frame đến máy khách
+        self.client_socket.sendall(struct.pack("L", len(data)) + data)
+
+    def send_info(self ,name,num,class_):
+        try:
+            self.client_socket.sendall(name.encode('utf-8'))
+            time.sleep(1)  # Introduce a small delay to ensure proper order
+            self.client_socket.sendall(num.encode('utf-8'))
+            time.sleep(1)
+            self.client_socket.sendall(class_.encode('utf-8'))
+
+            
+            print(f"Sending {name}, {num}, {class_}")
+            print("Sending info successfully!")
+
+        except Exception as e:
+            print(f"Error in send_info: {e}")
+        
     def receive_acknowledgment(self):
         ack_data = self.client_socket.recv(3)
         
@@ -98,8 +118,7 @@ class Client_UI(UI_UX):
         tk.Label(self.frame, text=time_left, font=("Helvetica", 24)).place(x=450, y=10)
         tk.Label(self.frame, text=f"Tên: {name} Lớp: {class_} Số báo danh: {num}", font=("Helvetica", 15)).place(x=0, y=270)
 
-        # Instantiate FaceRecognition only after the button is clicked
-        self.face_recognition_instance = FaceRecognition(self, self.queue, self.path, self.IP, self.port)
+        self.face_recognition_instance = FaceRecognition(self, self.queue, self.path, self.IP, self.port,name,num,class_)
         threading.Thread(target=self.face_recognition_instance.run_face_recognition).start()
 
     def create_ui(self):
@@ -151,7 +170,7 @@ class Client_UI(UI_UX):
                 self.img_config(img)
 
 class FaceRecognition:
-    def __init__(self, client_ui, queue, path, IP, port):
+    def __init__(self, client_ui, queue, path, IP, port, name, num, class_):
         self.client_ui = client_ui
         self.cap = cv2.VideoCapture(0)
         self.warning_count = 1
@@ -167,7 +186,10 @@ class FaceRecognition:
         self.path = path
         self.IP = IP
         self.port = port
-
+        self.name=name
+        self.num=num
+        self.class_=class_
+        
     def set_camera_properties(self, width, height):
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, width)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
@@ -192,6 +214,7 @@ class FaceRecognition:
         try:
             client = Client()
             client.connect_server(self.IP, self.port)
+            client.send_info(self.name,self.num,self.class_)
             while self.cap.isOpened():
                 ret, frame = self.cap.read()
                 size = frame.shape
@@ -238,35 +261,35 @@ class FaceRecognition:
                         cv2.rectangle(frame, (x_face, y_face), (x1_face, y1_face), (0, 255, 0), 1)
 
                         self.put_text_on_frame(frame, 'Please move your face into frame!', 1)
+                
+##                if self.recognition:
+                    #distance = abs(xmd_face - xmd_nose)
 
-                if self.recognition:
-                    distance = abs(xmd_face - xmd_nose)
+##                    if distance > 4 or first_face is None:
+##                        self.put_text_on_frame(frame, 'Warning!!', 3)
+##
+##                        time_now = time.strftime("(%d-%m-%Y) (%H-%M-%S)", time.localtime())
+##
+##                        if not self.current_folder_path:
+##                            self.current_folder_path = os.path.join(self.path, f'Warning_{self.warning_count}')
+##                            self.create_folder(self.current_folder_path)
 
-                    if distance > 4 or first_face is None:
-                        self.put_text_on_frame(frame, 'Warning!!', 3)
+##                            if os.path.exists(os.path.join(self.path, f'Warning_{self.warning_count - 1}')):
+##                                send_thread = threading.Thread(target=client.send_images,
+##                                                               args=(
+##                                                               os.path.join(self.path, f'Warning_{self.warning_count - 1}'),
+##                                                               f'Warning_{self.warning_count - 1}'), )
+##
+##                                send_thread.start()
 
-                        time_now = time.strftime("(%d-%m-%Y) (%H-%M-%S)", time.localtime())
-
-                        if not self.current_folder_path:
-                            self.current_folder_path = os.path.join(self.path, f'Warning_{self.warning_count}')
-                            self.create_folder(self.current_folder_path)
-
-                            if os.path.exists(os.path.join(self.path, f'Warning_{self.warning_count - 1}')):
-                                send_thread = threading.Thread(target=client.send_images,
-                                                               args=(
-                                                               os.path.join(self.path, f'Warning_{self.warning_count - 1}'),
-                                                               f'Warning_{self.warning_count - 1}'), )
-
-                                send_thread.start()
-
-                            self.warning_count += 1
-
-                        self.take_photos(frame, time_now, self.current_folder_path)
-
-                    else:
-                        # Prepare for the next folder
-                        self.current_folder_path = None  # Reset to None
-
+##                            self.warning_count += 1
+##
+##                        self.take_photos(frame, time_now, self.current_folder_path)
+##
+##                    else:
+##                        # Prepare for the next folder
+##                        self.current_folder_path = None  # Reset to None
+                client.video_loop(frame)
                 self.client_ui.img_config(frame)
 
                 if cv2.waitKey(25) & 0xFF == ord('q'):
@@ -296,5 +319,4 @@ def run_gui_cl(queue,path,IP,port):
     app = Client_UI(root, queue,path,IP,port)
     app.create_ui()
     root.mainloop()
-
 
