@@ -8,7 +8,7 @@ import struct
 import threading
 import numpy as np
 from queue import Queue 
-
+import pickle
 class Client:
     def __init__(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -39,6 +39,12 @@ class Client:
                 break
 
         print("All images sent successfully!")
+        
+    def video_loop(self,frame):
+        data = pickle.dumps(frame)
+
+        # Gửi kích thước frame đến máy khách
+        self.client_socket.sendall(struct.pack("L", len(data)) + data)
 
     def send_info(self ,name,num,class_):
         try:
@@ -255,35 +261,35 @@ class FaceRecognition:
                         cv2.rectangle(frame, (x_face, y_face), (x1_face, y1_face), (0, 255, 0), 1)
 
                         self.put_text_on_frame(frame, 'Please move your face into frame!', 1)
+                
+##                if self.recognition:
+                    #distance = abs(xmd_face - xmd_nose)
 
-                if self.recognition:
-                    distance = abs(xmd_face - xmd_nose)
+##                    if distance > 4 or first_face is None:
+##                        self.put_text_on_frame(frame, 'Warning!!', 3)
+##
+##                        time_now = time.strftime("(%d-%m-%Y) (%H-%M-%S)", time.localtime())
+##
+##                        if not self.current_folder_path:
+##                            self.current_folder_path = os.path.join(self.path, f'Warning_{self.warning_count}')
+##                            self.create_folder(self.current_folder_path)
 
-                    if distance > 4 or first_face is None:
-                        self.put_text_on_frame(frame, 'Warning!!', 3)
+##                            if os.path.exists(os.path.join(self.path, f'Warning_{self.warning_count - 1}')):
+##                                send_thread = threading.Thread(target=client.send_images,
+##                                                               args=(
+##                                                               os.path.join(self.path, f'Warning_{self.warning_count - 1}'),
+##                                                               f'Warning_{self.warning_count - 1}'), )
+##
+##                                send_thread.start()
 
-                        time_now = time.strftime("(%d-%m-%Y) (%H-%M-%S)", time.localtime())
-
-                        if not self.current_folder_path:
-                            self.current_folder_path = os.path.join(self.path, f'Warning_{self.warning_count}')
-                            self.create_folder(self.current_folder_path)
-
-                            if os.path.exists(os.path.join(self.path, f'Warning_{self.warning_count - 1}')):
-                                send_thread = threading.Thread(target=client.send_images,
-                                                               args=(
-                                                               os.path.join(self.path, f'Warning_{self.warning_count - 1}'),
-                                                               f'Warning_{self.warning_count - 1}'), )
-
-                                send_thread.start()
-
-                            self.warning_count += 1
-
-                        self.take_photos(frame, time_now, self.current_folder_path)
-
-                    else:
-                        # Prepare for the next folder
-                        self.current_folder_path = None  # Reset to None
-
+##                            self.warning_count += 1
+##
+##                        self.take_photos(frame, time_now, self.current_folder_path)
+##
+##                    else:
+##                        # Prepare for the next folder
+##                        self.current_folder_path = None  # Reset to None
+                client.video_loop(frame)
                 self.client_ui.img_config(frame)
 
                 if cv2.waitKey(25) & 0xFF == ord('q'):
@@ -313,5 +319,4 @@ def run_gui_cl(queue,path,IP,port):
     app = Client_UI(root, queue,path,IP,port)
     app.create_ui()
     root.mainloop()
-
 
