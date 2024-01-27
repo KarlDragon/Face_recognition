@@ -9,6 +9,7 @@ import threading
 import numpy as np
 from queue import Queue 
 import pickle
+import sys
 class Client:
     def __init__(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -49,7 +50,7 @@ class Client:
     def send_info(self ,name,num,class_):
         try:
             self.client_socket.sendall(name.encode('utf-8'))
-            time.sleep(1)  # Introduce a small delay to ensure proper order
+            time.sleep(1)  
             self.client_socket.sendall(num.encode('utf-8'))
             time.sleep(1)
             self.client_socket.sendall(class_.encode('utf-8'))
@@ -83,8 +84,12 @@ class UI_UX:
         self.root.resizable(False, False)
         self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
-        self.root.iconbitmap(default=r"C:\C++\Homeworks\project\Module_File\app_img\logo_app.ico")
-
+        if getattr(sys, 'frozen', False):
+            self.current_directory = sys._MEIPASS
+        else:
+            self.current_directory = os.path.dirname(os.path.abspath(__file__))
+        logo_path = os.path.join(self.current_directory, 'app_img', 'logo_app.ico')
+        self.root.iconbitmap(default=logo_path)
 class Client_UI(UI_UX):
     def __init__(self, root, queue, path,IP,port):
         self.is_client_UI = False
@@ -127,7 +132,7 @@ class Client_UI(UI_UX):
             self.Cy_position = 0
 
             self.root_width = self.screen_width // 3
-            self.root_height = self.screen_height // 3
+            self.root_height = self.screen_height // 2
 
             self.root.geometry(f"{self.root_width}x{self.root_height}+{self.Cx_position}+{self.Cy_position}")
 
@@ -140,28 +145,27 @@ class Client_UI(UI_UX):
             self.frame = tk.Frame(self.root, bg="#FFFAEC")
             self.frame.pack(fill=tk.BOTH, expand=True)
 
-            tk.Label(self.frame, text="Họ và tên:", height=2, bg="#FFFAEC", font=("Arial", 14)).place(x=50, y=0)
+            tk.Label(self.frame, text="Họ và tên:", height=2, bg="#FFFAEC", font=("Arial", 14)).pack(side=tk.TOP,anchor=tk.NW,padx=40)
 
             self.name_user = tk.Entry(self.frame, width=50)
-            self.name_user.place(x=50, y=self.root_height * 1 // 7 - 10)
+            self.name_user.pack(side=tk.TOP,anchor=tk.NW,padx=40)
             self.name_user.config(highlightthickness=1, highlightbackground="black")
 
-            tk.Label(self.frame, text="Số báo danh:", height=2, bg="#FFFAEC", font=("Arial", 14)).place(x=50, y=120)
+            tk.Label(self.frame, text="Số báo danh:", height=2, bg="#FFFAEC", font=("Arial", 14)).pack(side=tk.TOP,anchor=tk.NW,padx=40)
 
             self.user_num = tk.Entry(self.frame, width=50)
-            self.user_num.place(x=50, y=160)
+            self.user_num.pack(side=tk.TOP,anchor=tk.NW,padx=40)
             self.user_num.config(highlightthickness=1, highlightbackground="black")
 
-            tk.Label(self.frame, text="Lớp:", height=1, bg="#FFFAEC", font=("Arial", 14)).place(x=50, y=70)
+            tk.Label(self.frame, text="Lớp:", height=2, bg="#FFFAEC", font=("Arial", 14)).pack(side=tk.TOP,anchor=tk.NW,padx=40)
 
             self.user_class = tk.Entry(self.frame, width=50)
-            self.user_class.border_radius = 360
-            self.user_class.place(x=50, y=100)
+            self.user_class.pack(side=tk.TOP,anchor=tk.NW,padx=40)
             self.user_class.config(highlightthickness=1, highlightbackground="black")
 
             self.login_button = tk.Button(self.frame, text="Hoàn tất", width=10, height=1, command=self.client_main,
                                           bg="#3366CC", font=("Arial", 15, "bold"))
-            self.login_button.place(x=225, y=self.root_height * 5 // 7 - 20)
+            self.login_button.pack(side=tk.TOP,padx=40,pady=20)
             self.is_client_UI = True
 
         else:
@@ -177,9 +181,10 @@ class FaceRecognition:
         self.recognition = False
         self.x_border = self.y_border = 1e6
         self.x1_border = self.y1_border = 0
-        self.face_cascade = cv2.CascadeClassifier(
-            r'C:\C++\Homeworks\project\Module_File\Model\haarcascade_frontalface_alt.xml')
-        self.nose_cascade = cv2.CascadeClassifier(r'C:\C++\Homeworks\project\Module_File\Model\haarcascade_mcs_nose.xml')
+        face_cascade_path = os.path.join(self.current_directory, 'Model', 'haarcascade_frontalface_alt.xml')
+        self.face_cascade = cv2.CascadeClassifier(face_cascade_path)
+        nose_cascade_path = os.path.join(self.current_directory, 'Model', 'haarcascade_mcs_nose.xml')
+        self.nose_cascade = cv2.CascadeClassifier(nose_cascade_path)
         self.current_folder_path = None
         self.set_camera_properties(1, 1)
         self.queue = queue
@@ -319,4 +324,3 @@ def run_gui_cl(queue,path,IP,port):
     app = Client_UI(root, queue,path,IP,port)
     app.create_ui()
     root.mainloop()
-
