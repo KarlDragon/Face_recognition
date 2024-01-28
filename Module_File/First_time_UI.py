@@ -1,5 +1,6 @@
 import tkinter as tk
-
+import sys
+import os
 class UI_UX:
     def __init__(self,root):
         self.root = root
@@ -7,7 +8,12 @@ class UI_UX:
         self.root.resizable(False, False)
         self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
-        self.root.iconbitmap(default=r"C:\C++\Homeworks\project\Module_File\app_img\logo_app.ico")
+        if getattr(sys, 'frozen', False):
+            self.current_directory = sys._MEIPASS
+        else:
+            self.current_directory = os.path.dirname(os.path.abspath(__file__))
+        logo_path = os.path.join(self.current_directory, 'app_img', 'logo_app.ico')
+        self.root.iconbitmap(default=logo_path)
         
 class First_time_UI(UI_UX):
     def __init__(self,root):
