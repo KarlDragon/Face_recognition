@@ -181,6 +181,10 @@ class FaceRecognition:
         self.recognition = False
         self.x_border = self.y_border = 1e6
         self.x1_border = self.y1_border = 0
+        if getattr(sys, 'frozen', False):
+            self.current_directory = sys._MEIPASS
+        else:
+            self.current_directory = os.path.dirname(os.path.abspath(__file__))
         face_cascade_path = os.path.join(self.current_directory, 'Model', 'haarcascade_frontalface_alt.xml')
         self.face_cascade = cv2.CascadeClassifier(face_cascade_path)
         nose_cascade_path = os.path.join(self.current_directory, 'Model', 'haarcascade_mcs_nose.xml')
