@@ -7,7 +7,8 @@ import socket
 import struct
 import threading
 import numpy as np
-
+import pickle
+import sys
 class UI_UX:
     def __init__(self, root):
         self.root = root
@@ -15,23 +16,31 @@ class UI_UX:
         self.root.resizable(False, False)
         self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
-        self.root.iconbitmap(default=r"C:\C++\Homeworks\project\Module_File\app_img\logo_app.ico")
+        if getattr(sys, 'frozen', False):
+            self.current_directory = sys._MEIPASS
+        else:
+            self.current_directory = os.path.dirname(os.path.abspath(__file__))
+        logo_path = os.path.join(self.current_directory, 'app_img', 'logo_app.ico')
+        self.root.iconbitmap(default=logo_path)
         
 class Server_UI(UI_UX):
     def __init__(self,root,path,IP,port,amount):
         check_button=False
         self.is_sound=True
-        self.Sound_off = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\Sound_off.jpg").resize((50,40)))
-        self.Sound_on = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\Sound_on.jpg").resize((50,40)))
-        self.tk_logo = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\logo_app_jpg.jpg").resize((50,50)))
+        super().__init__(root)
+        Sound_off_path=os.path.join(self.current_directory, 'app_img', 'Sound_off.jpg')
+        self.Sound_off = ImageTk.PhotoImage(Image.open(Sound_off_path).resize((50,40)))
+        Sound_on_path=os.path.join(self.current_directory, 'app_img', 'Sound_on.jpg')
+        self.Sound_on = ImageTk.PhotoImage(Image.open(Sound_on_path).resize((50,40)))
+        tk_logo_path=os.path.join(self.current_directory, 'app_img', 'logo_app_jpg.jpg')
+        self.tk_logo = ImageTk.PhotoImage(Image.open(tk_logo_path).resize((50,50)))
         self.path=path
         self.IP=IP
         self.port=port
         self.amount=amount
-        super().__init__(root)
-
-    def show_cam(self):
-        pass
+        self.server = Server(self.path, self.IP, self.port,self.amount)
+        self.back_ground = False
+        
 
     def show_folder(self, search, folder_list, canvas):
         index = int(search.get()) - 1
@@ -151,10 +160,16 @@ class Server_UI(UI_UX):
         
         self.distance_x = self.root_width - self.frame_info_x
         self.distance_y = self.root_height - self.competition_frame_y - self.top_home_frame_y
-        
-        self.tk_background = ImageTk.PhotoImage(Image.open(r"C:\C++\Homeworks\project\Module_File\app_img\home_bg.jpg").resize((self.distance_x,self.distance_y)))
+
+        background_path = tk_logo_path=os.path.join(self.current_directory, 'app_img', 'home_bg.jpg')
+        self.tk_background = ImageTk.PhotoImage(Image.open(background_path).resize((self.distance_x,self.distance_y)))
         tk.Label(self.frame, image=self.tk_background).pack(side=tk.TOP,fill=tk.BOTH, expand=True)
         
+    def show_cam(self,key):
+        cv2.imshow("Received", self.server.image_dict[key])
+        self.photo_image = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(self.server.image_dict[key], cv2.COLOR_BGR2RGB)))
+        self.frame.configure(image=self.photo_image)
+            
     def cam(self, cam_num):
         for widget in self.frame.winfo_children():
             widget.destroy()
@@ -172,11 +187,19 @@ class Server_UI(UI_UX):
         cam_frame = tk.Frame(canvas, bg="pink")
         canvas.create_window((0, 0), window=cam_frame, anchor=tk.NW)
 
-        cam_list = [0 for _ in range(cam_num)]
-        lst=['HuynhGiaThien_110256','DangHoangPhong_110357']
-        for i in range(cam_num):
-            cam_list[i] = tk.Button(cam_frame, text=f"Cam:{lst[i]}", width=35, height=1, command=self.show_cam,font=("Arial", 15), bg="#FF69B4")
-            cam_list[i].pack(side=tk.TOP, pady=5)
+        #self.back_ground = tk.Label(self.frame)
+        #self.back_ground.pack(fill=tk.BOTH, expand=True)
+        
+        for key, value in self.server.image_dict.items():
+            if not any(btn["text"] == key for btn in cam_frame.winfo_children()):
+                tk.Button(cam_frame,
+                          text=key,
+                          width=35,
+                          height=1,
+                          command=lambda: self.show_cam(key),
+                          font=("Arial", 15),
+                          bg="#FF69B4").pack(side=tk.TOP, pady=5)
+
 
         cam_frame.update_idletasks()  # Cập nhật cam_frame để có chiều cao chính xác cho canvas
 
@@ -208,12 +231,6 @@ class Server_UI(UI_UX):
 
         cam_frame = tk.Frame(canvas, bg="pink")
         canvas.create_window((0, 0), window=cam_frame, anchor=tk.NW)
-        
-        folder_list = [0 for _ in range(folder_num)]
-        lst=['HuynhGiaThien_11B12_110256','DangHoangPhong_11B12_110357']
-        for i in range(folder_num):
-            folder_list[i] = tk.Button(cam_frame, text=f"folder:{lst[i]}", width=35, height=1, command=self.show_cam,font=("Arial", 15), bg="#FF69B4")
-            folder_list[i].pack(side=tk.TOP, pady=5)
 
         search_button=tk.Button(self.frame, text="Tìm kiếm",height=1, command=lambda: self.show_folder(self.search,folder_list,canvas))
         search_button.place(x=1500,y=90)
@@ -259,7 +276,7 @@ class Server_UI(UI_UX):
         self.frame.pack(fill=tk.BOTH, expand=True)
         self.home()
         
-        self.server = Server(self.path, self.IP, self.port,self.amount)
+        
         threading.Thread(target=self.server.start_server).start()
 
 class Server:
@@ -269,7 +286,61 @@ class Server:
         self.port=port
         self.amount=amount
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.image_dict={}
+##    def folder_thread(self,conn,folder_path):
+##        folder_name = conn.recv(1024).decode('utf-8')
+##        save_folder = os.path.join(folder_path, folder_name)
+##        self.create_folder(save_folder)
+##
+##        size_data = conn.recv(4)
+##        if not size_data:
+##            break
+##
+##        size = struct.unpack("!L", size_data)[0]
+##
+##        image_data = b""
+##        while len(image_data) < size:
+##            chunk = conn.recv(size - len(image_data))
+##            if not chunk:
+##                break
+##            image_data += chunk
+##
+##        if not image_data:
+##            break
+##
+##        image = cv2.imdecode(np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
+##
+##        filename = f"image_{time.time()}.jpg"
+##        image_path = os.path.join(save_folder, filename)
+##        cv2.imwrite(image_path, image)
+##        print(f"Image received and saved as: {image_path}")
+##        print(f"Recv: {len(image_data)} bytes")
+##
+##        conn.sendall(b"ACK")
+        
+    def video_thread(self,conn,user_folder):
+        while True:
+            data = b""
+            payload_size = struct.calcsize("L")
+            while len(data) < payload_size:
+                packet = conn.recv(4 * 1024)
+                if not packet:
+                    break
+                data += packet
 
+            packed_msg_size = data[:payload_size]
+            data = data[payload_size:]
+            msg_size = struct.unpack("L", packed_msg_size)[0]
+
+            while len(data) < msg_size:
+                data += conn.recv(4 * 1024)
+
+            frame_data = data[:msg_size]
+            data = data[msg_size:]
+
+            frame = pickle.loads(frame_data)
+            self.image_dict[user_folder]=frame
+        
     def handle_client(self, conn, addr):
         ip_address, port_number = addr
         print(f"Connection from {addr}")
@@ -284,39 +355,13 @@ class Server:
         time.sleep(1)  # Introduce a small delay to ensure proper order
         class_ = conn.recv(1024).decode('utf-8')
         print(f"Received class: {class_}")
-        
-        folder_path = os.path.join(self.path, ip_address)
+
+        user_folder=f"{name}_{class_}_{num}"
+        folder_path = os.path.join(self.path, user_folder)
         self.create_folder(folder_path)
-        while True:
-            folder_name = conn.recv(1024).decode('utf-8')
-            save_folder = os.path.join(folder_path, folder_name)
-            self.create_folder(save_folder)
-
-            size_data = conn.recv(4)
-            if not size_data:
-                break
-
-            size = struct.unpack("!L", size_data)[0]
-
-            image_data = b""
-            while len(image_data) < size:
-                chunk = conn.recv(size - len(image_data))
-                if not chunk:
-                    break
-                image_data += chunk
-
-            if not image_data:
-                break
-
-            image = cv2.imdecode(np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
-
-            filename = f"image_{time.time()}.jpg"
-            image_path = os.path.join(save_folder, filename)
-            cv2.imwrite(image_path, image)
-            print(f"Image received and saved as: {image_path}")
-            print(f"Recv: {len(image_data)} bytes")
-
-            conn.sendall(b"ACK")
+        
+        self.video_thread(conn,user_folder)
+        #self.folder_thread(conn,folder_path)
 
         conn.close()
         print(f"Connection from {addr} closed")
