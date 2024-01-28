@@ -9,8 +9,10 @@ class UI_UX:
         self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
         if getattr(sys, 'frozen', False):
-            self.current_directory = sys._MEIPASS
+            # Ứng dụng đang chạy trong môi trường được đóng gói (executable)
+            self.current_directory = os.path.dirname(sys.executable)
         else:
+            # Ứng dụng đang chạy trong môi trường không được đóng gói (script)
             self.current_directory = os.path.dirname(os.path.abspath(__file__))
         logo_path = os.path.join(self.current_directory, 'app_img', 'logo_app.ico')
         self.root.iconbitmap(default=logo_path)

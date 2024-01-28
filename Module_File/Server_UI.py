@@ -17,8 +17,10 @@ class UI_UX:
         self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
         if getattr(sys, 'frozen', False):
-            self.current_directory = sys._MEIPASS
+            # Ứng dụng đang chạy trong môi trường được đóng gói (executable)
+            self.current_directory = os.path.dirname(sys.executable)
         else:
+            # Ứng dụng đang chạy trong môi trường không được đóng gói (script)
             self.current_directory = os.path.dirname(os.path.abspath(__file__))
         logo_path = os.path.join(self.current_directory, 'app_img', 'logo_app.ico')
         self.root.iconbitmap(default=logo_path)
@@ -165,30 +167,32 @@ class Server_UI(UI_UX):
         self.tk_background = ImageTk.PhotoImage(Image.open(background_path).resize((self.distance_x,self.distance_y)))
         tk.Label(self.frame, image=self.tk_background).pack(side=tk.TOP,fill=tk.BOTH, expand=True)
         
-    def show_cam(self,key):
+    def show_cam(self, key):
+        threading.Thread(target=self.display_image, args=(key,)).start()
+
+    def display_image(self, key):
         cv2.imshow("Received", self.server.image_dict[key])
-        self.photo_image = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(self.server.image_dict[key], cv2.COLOR_BGR2RGB)))
-        self.frame.configure(image=self.photo_image)
+        cv2.waitKey(1)
             
     def cam(self, cam_num):
         for widget in self.frame.winfo_children():
             widget.destroy()
-        tk.Label(self.frame, text="Cam đang chạy", height=2, width=177, bg="pink",font=("Arial", 15)).place(x=10, y=10)
-        tk.Label(self.frame, text="Danh sách máy hoạt động", height=2, width=35, bg="pink",font=("Arial", 15)).place(x=10, y=50)
+        tk.Label(self.frame, text="Cam đang chạy", height=2, width=177, bg="pink",font=("Arial", 15)).pack(side=tk.TOP,fill=tk.X)
+        tk.Label(self.frame, text="Danh sách máy hoạt động", height=2, width=25, bg="pink",font=("Arial", 15)).pack(side=tk.TOP,anchor=tk.NW)
 
-        canvas = tk.Canvas(self.frame, bg="pink", height=880)  
-        canvas.place(x=8, y=100)
+        canvas = tk.Canvas(self.frame, bg="pink",width=280 )  
+        canvas.pack(side=tk.LEFT,fill=tk.Y,anchor=tk.NW)
 
         scrollbar = tk.Scrollbar(self.frame, orient=tk.VERTICAL, command=canvas.yview)
-        scrollbar.place(x=390, y=100, height=880)
+        scrollbar.pack(side=tk.LEFT,fill=tk.Y,anchor=tk.NW)
 
         canvas.configure(yscrollcommand=scrollbar.set)
 
         cam_frame = tk.Frame(canvas, bg="pink")
         canvas.create_window((0, 0), window=cam_frame, anchor=tk.NW)
 
-        #self.back_ground = tk.Label(self.frame)
-        #self.back_ground.pack(fill=tk.BOTH, expand=True)
+        self.back_ground = tk.Label(self.frame)
+        self.back_ground.pack(fill=tk.BOTH, expand=True)
         
         for key, value in self.server.image_dict.items():
             if not any(btn["text"] == key for btn in cam_frame.winfo_children()):
