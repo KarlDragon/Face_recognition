@@ -11,7 +11,6 @@ import pickle
 import sys
 import queue
 import subprocess
-
 class UI_UX:
     def __init__(self, root):
         self.root = root
@@ -46,8 +45,7 @@ class Server_UI(UI_UX):
         self.server = Server(self.path, self.IP, self.port,self.amount)
         self.back_ground = False
         self.image_queue = queue.Queue()
-        self.shared_lock = threading.Lock()
-        
+    
     #functions for home()
 
     def run_clock(self):
@@ -156,47 +154,38 @@ class Server_UI(UI_UX):
         self.tk_background = ImageTk.PhotoImage(Image.open(background_path).resize((self.distance_x,self.distance_y)))
         tk.Label(self.frame, image=self.tk_background).pack(side=tk.TOP,fill=tk.BOTH, expand=True)
 
-    def update_image_in_main_thread(self, img):
-        # Remove unnecessary try-except block
-        self.back_ground.configure(image=img)
-        self.back_ground.image = img
+    def update_image_in_main_thread(self):
+        try:
+            img = self.image_queue.get_nowait()
+            self.back_ground.configure(image=img)
+            self.back_ground.image = img
+        except queue.Empty:
+            pass
 
-        # Schedule the next update on the main thread after 200 milliseconds
-        self.root.after(0, self.update_image_in_main_thread)
+        # Schedule the next update on the main thread after 100 milliseconds
+        self.root.after(100, self.update_image_in_main_thread)
 
+    def show_cam(self, key):
+        try:
+            self.display_image(key)  
+            self.root.after(100, lambda: self.show_cam(key))
+            self.update_image_in_main_thread()
+        except Exception as e:
+            print(f"Error in show_cam: {e}")
 
-    def video_thread(self,conn):
-        with self.shared_lock:
-            conn.sendall(b"VID")
-            print(f"Starting recv video from {conn}")
             
-            while True:
-                print("HEHE BOY")
-                with self.shared_lock:
-                    data = b""
-                    payload_size = struct.calcsize("L")
-                    while len(data) < payload_size:
-                        packet = conn.recv(4 * 1024)
-                        if not packet:
-                            break
-                        data += packet
+    def display_image(self, key):
+        try:
+            img = ImageTk.PhotoImage(
+                Image.fromarray(
+                    cv2.cvtColor(self.server.image_dict[key], cv2.COLOR_BGR2RGB)))
+            # Put the image in the queue
+            self.image_queue.put(img)
 
-                    packed_msg_size = data[:payload_size]
-                    data = data[payload_size:]
-                    msg_size = struct.unpack("L", packed_msg_size)[0]
-
-                    while len(data) < msg_size:
-                        data += conn.recv(4 * 1024)
-
-                    frame_data = data[:msg_size]
-                    data = data[msg_size:]
-
-                    frame = pickle.loads(frame_data)
-                    self.update_image_in_main_thread(frame)
-                    self.root.after(0, self.update_image_in_main_thread, frame)
-    def show_cam(self, conn):
-        threading.Thread(target=self.video_thread, args=(conn,)).start()
-        
+            # Schedule the next update after 100 milliseconds
+            self.root.after(0, lambda: self.display_image(key))
+        except Exception as e:
+            print(f"Error displaying image: {e}")
             
     def cam(self, cam_num):
         for widget in self.frame.winfo_children():
@@ -219,13 +208,13 @@ class Server_UI(UI_UX):
         self.back_ground = tk.Label(self.frame)
         self.back_ground.pack(fill=tk.BOTH, expand=True)
         
-        for key, value in self.server.user_conn.items():
+        for key, value in self.server.image_dict.items():
             if not any(btn["text"] == key for btn in cam_frame.winfo_children()):
                 tk.Button(cam_frame,
                           text=key,
                           width=35,
                           height=1,
-                          command=lambda: self.show_cam(value),
+                          command=lambda: self.show_cam(key),
                           font=("Arial", 15),
                           bg="#FF69B4").pack(side=tk.TOP, pady=5)
 
@@ -329,7 +318,90 @@ class Server_UI(UI_UX):
         self.frame.pack(fill=tk.BOTH, expand=True)
         self.home()
         
+        
         threading.Thread(target=self.server.start_server).start()
+
+class VideoThread(threading.Thread):
+    def __init__(self, conn, user_cam, image_dict, shared_lock):
+        super().__init__()
+        self.conn = conn
+        self.user_cam = user_cam
+        self.image_dict = image_dict
+        self.shared_lock = shared_lock
+
+    def run(self):
+        while True:
+            with self.shared_lock:
+                data = b""
+                payload_size = struct.calcsize("L")
+                while len(data) < payload_size:
+                    packet = self.conn.recv(4 * 1024)
+                    if not packet:
+                        break
+                    data += packet
+
+                packed_msg_size = data[:payload_size]
+                data = data[payload_size:]
+                msg_size = struct.unpack("L", packed_msg_size)[0]
+
+                while len(data) < msg_size:
+                    data += self.conn.recv(4 * 1024)
+
+                frame_data = data[:msg_size]
+                data = data[msg_size:]
+
+                frame = pickle.loads(frame_data)
+                self.image_dict[self.user_cam] = frame
+
+class FolderThread(threading.Thread):
+    def __init__(self, conn, folder_path, shared_lock):
+        super().__init__()
+        self.conn = conn
+        self.folder_path = folder_path
+        self.shared_lock = shared_lock
+
+    def create_folder(self, path):
+        os.makedirs(path, exist_ok=True)
+        
+    def run(self):
+        print("HUH?")
+        
+        with self.shared_lock:
+            print("FOLDERRRRR!")
+            while True:
+                folder_name = self.conn.recv(1024).decode('utf-8')
+                print(folder_name)
+                save_folder = os.path.join(self.folder_path, folder_name)
+                print(save_folder)
+                self.create_folder(save_folder)
+
+                size_data = self.conn.recv(4)
+                if not size_data:
+                    break
+
+                size = struct.unpack("!L", size_data)[0]
+
+                image_data = b""
+                while len(image_data) < size:
+                    chunk = self.conn.recv(size - len(image_data))
+                    if not chunk:
+                        break
+                    image_data += chunk
+
+                if not image_data:
+                    break
+
+                image = cv2.imdecode(np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
+
+                filename = f"image_{time.time()}.jpg"
+                image_path = os.path.join(save_folder, filename)
+                cv2.imwrite(image_path, image)
+                print(f"Image received and saved as: {image_path}")
+                print(f"Recv: {len(image_data)} bytes")
+
+                self.conn.sendall(b"ACK")
+
+    
             
 class Server:
     def __init__(self,path,IP,port,amount):
@@ -338,62 +410,11 @@ class Server:
         self.port=port
         self.amount=amount
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.image_dict={}
         self.user_path={}
-        self.user_conn={}
-        self.shared_lock = threading.Lock()
-
-    def create_folder(self, path):
-        os.makedirs(path, exist_ok=True)
-
-    def folder_thread(self, conn):
-        try:
-            with self.shared_lock:
-                print(f"Starting recv folder from {conn}")
-                while True:
-                    conn.sendall(b"NO")
-                    print("HUH")
-                    folder_name = conn.recv(1024).decode('utf-8')
-
-                    save_folder = os.path.join(self.path, folder_name)
-                    print(save_folder)
-                    self.create_folder(save_folder)
-
-                    size_data = conn.recv(4)
-                    if not size_data:
-                        break
-
-                    size = struct.unpack("!L", size_data)[0]
-
-                    image_data = b""
-                    while len(image_data) < size:
-                        chunk = conn.recv(size - len(image_data))
-                        if not chunk:
-                            break
-                        image_data += chunk
-
-                    if not image_data:
-                        break
-
-                    image = cv2.imdecode(np.frombuffer(image_data, dtype=np.uint8), cv2.IMREAD_COLOR)
-
-                    filename = f"image_{time.time()}.jpg"
-                    image_path = os.path.join(save_folder, filename)
-                    cv2.imwrite(image_path, image)
-                    print(f"Image received and saved as: {image_path}")
-                    print(f"Recv: {len(image_data)} bytes")
-
-                    conn.sendall(b"ACK")
-        except (ConnectionAbortedError, ConnectionResetError):
-            # Handle disconnection or errors
-            print("Client disconnected.")
-        except Exception as e:
-            # Handle other exceptions
-            print(f"Exception in folder_thread: {e}")
-        finally:
-            # Cleanup and close the connection
-            conn.close()
-            print("folder_thread terminated.")
-                
+        self.video_lock = threading.Lock()
+        self.folder_lock = threading.Lock()
+        
     def handle_client(self, conn, addr):
         print(conn)
         ip_address, port_number = addr
@@ -412,17 +433,26 @@ class Server:
 
         user_folder=f"{name}_{class_}_{num}"
         user_cam=f"{name}_{class_}"
-
-        self.user_conn[user_cam]=conn
+        
         folder_path = os.path.join(self.path, user_folder)
         self.create_folder(folder_path)
+        
+        video_thread = VideoThread(conn, user_cam, self.image_dict, self.video_lock)
+        folder_thread = FolderThread(conn, folder_path, self.folder_lock)
         self.user_path[user_folder]=folder_path
-
-        client_thread = threading.Thread(target=self.folder_thread, args=(conn,))
-        client_thread.start()
             
-        #conn.close()
-        #print(f"Connection from {addr} closed")
+        video_thread.start()
+        folder_thread.start()
+
+        video_thread.join() 
+        folder_thread.join()
+            
+
+        conn.close()
+        print(f"Connection from {addr} closed")
+
+    def create_folder(self, path):
+        os.makedirs(path, exist_ok=True)
 
     def start_server(self):
         self.server_socket.bind((self.IP, self.port))
