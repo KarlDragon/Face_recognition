@@ -338,11 +338,8 @@ class FaceRecognition:
                 
                 self.client_ui.img_config(frame)
 
-                threading.Thread(target=client.video_loop, args=(frame,)).start()
-                    
-                threading.Thread(target=self.send_folder, args=(first_face,frame,client,)).start()
-            
-                                
+                client.video_loop(frame)                                
+                self.send_folder(first_face,frame,client)                                        
 
             # Release the video capture object
             self.cap.release()
