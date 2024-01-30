@@ -1,0 +1,9 @@
+User
+client_socket1 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket1.connect(('your_server_ip', your_server_port1))
+ client_socket2 = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    client_socket2.connect(('your_server_ip', your_server_port2))
+client_socket1.close()
+client_socket2.close()
+
+Can connect for twice, ahhhhhhhhh
