@@ -13,6 +13,8 @@ import sys
 class Client:
     def __init__(self):
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.lock_send_images = threading.Lock()
+        self.lock_video_loop = threading.Lock() 
     def connect_server(self, IP, port):
         self.client_socket.connect((IP, port))
         
@@ -20,32 +22,34 @@ class Client:
         self.client_socket.close()
 
     def send_images(self, folder_path, name_file):
-        for filename in os.listdir(folder_path):
-            
-            self.client_socket.sendall(name_file.encode('utf-8'))
-            
-            image_path = os.path.join(folder_path, filename)
+        with self.lock_send_images:
+            for filename in os.listdir(folder_path):
+                
+                self.client_socket.sendall(name_file.encode('utf-8'))
+                
+                image_path = os.path.join(folder_path, filename)
 
-            with open(image_path, 'rb') as file:
-                image_data = file.read()
+                with open(image_path, 'rb') as file:
+                    image_data = file.read()
 
-            size = struct.pack("!I", len(image_data))
-            
-            self.client_socket.sendall(size)
-            self.client_socket.sendall(image_data)
+                size = struct.pack("!I", len(image_data))
+                
+                self.client_socket.sendall(size)
+                self.client_socket.sendall(image_data)
 
-            print(f"Sent image: {filename}")
+                print(f"Sent image: {filename}")
 
-            if not self.receive_acknowledgment():
-                break
+                if not self.receive_acknowledgment():
+                    break
 
-        print("All images sent successfully!")
+            print("All images sent successfully!")
         
     def video_loop(self,frame):
-        data = pickle.dumps(frame)
+        with self.lock_video_loop: 
+            data = pickle.dumps(frame)
 
-        # Gửi kích thước frame đến máy khách
-        self.client_socket.sendall(struct.pack("L", len(data)) + data)
+            # Gửi kích thước frame đến máy khách
+            self.client_socket.sendall(struct.pack("L", len(data)) + data)
 
     def send_info(self ,name,num,class_):
         try:
@@ -85,13 +89,12 @@ class UI_UX:
         self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
         if getattr(sys, 'frozen', False):
-            # Ứng dụng đang chạy trong môi trường được đóng gói (executable)
-            self.current_directory = os.path.dirname(sys.executable)
+            self.current_directory = sys._MEIPASS
         else:
-            # Ứng dụng đang chạy trong môi trường không được đóng gói (script)
             self.current_directory = os.path.dirname(os.path.abspath(__file__))
         logo_path = os.path.join(self.current_directory, 'app_img', 'logo_app.ico')
         self.root.iconbitmap(default=logo_path)
+        
 class Client_UI(UI_UX):
     def __init__(self, root, queue, path,IP,port):
         self.is_client_UI = False
@@ -103,12 +106,29 @@ class Client_UI(UI_UX):
         self.path=path
         self.IP=IP
         self.port=port
+        self.photo_image = None
         super().__init__(root)
 
     def img_config(self, img):
-        if self.back_ground:
+        if self.photo_image is None:
+            img = cv2.resize(img, (self.root_width, self.root_height))
             self.photo_image = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
-            self.back_ground.configure(image=self.photo_image)
+            self.back_ground = tk.Label(self.frame, image=self.photo_image)
+            self.back_ground.pack(fill=tk.BOTH, expand=True)
+        else:
+            img = cv2.resize(img, (self.root_width, self.root_height))
+            new_image = ImageTk.PhotoImage(Image.fromarray(cv2.cvtColor(img, cv2.COLOR_BGR2RGB)))
+            self.back_ground.config(image=new_image)
+            self.back_ground.image = new_image  # Keep a reference to avoid garbage collection
+
+        self.root.update_idletasks()  # Update the window immediately
+
+
+    def update_image_async(self):
+        img = self.queue.get()
+        if img is not None:
+            self.img_config(img)
+        self.root.after(self.update_interval, self.update_image_async)
 
     def client_main(self):
         name = self.name_user.get()
@@ -125,9 +145,9 @@ class Client_UI(UI_UX):
         tk.Label(self.frame, text=time_left, font=("Helvetica", 24)).place(x=450, y=10)
         tk.Label(self.frame, text=f"Tên: {name} Lớp: {class_} Số báo danh: {num}", font=("Helvetica", 15)).place(x=0, y=270)
 
-        self.face_recognition_instance = FaceRecognition(self, self.queue, self.path, self.IP, self.port,name,num,class_)
+        self.face_recognition_instance = FaceRecognition(self, self.queue, self.path, self.IP, self.port,name,num,class_,self.root_width,self.root_height)
         threading.Thread(target=self.face_recognition_instance.run_face_recognition).start()
-
+        
     def create_ui(self):
         if not self.is_client_UI:
             self.Cx_position = self.screen_width * 2 // 3
@@ -173,22 +193,26 @@ class Client_UI(UI_UX):
         else:
             img = self.queue.get()
             if img is not None:
-                self.img_config(img)
+                self.root.after(50, self.update_image_async)
 
 class FaceRecognition:
-    def __init__(self, client_ui, queue, path, IP, port, name, num, class_):
+    def __init__(self, client_ui, queue, path, IP, port, name, num, class_,w,h):
         self.client_ui = client_ui
         self.cap = cv2.VideoCapture(0)
         self.warning_count = 1
         self.recognition = False
         self.x_border = self.y_border = 1e6
         self.x1_border = self.y1_border = 0
+        if getattr(sys, 'frozen', False):
+            self.current_directory = sys._MEIPASS
+        else:
+            self.current_directory = os.path.dirname(os.path.abspath(__file__))
         face_cascade_path = os.path.join(self.current_directory, 'Model', 'haarcascade_frontalface_alt.xml')
         self.face_cascade = cv2.CascadeClassifier(face_cascade_path)
         nose_cascade_path = os.path.join(self.current_directory, 'Model', 'haarcascade_mcs_nose.xml')
         self.nose_cascade = cv2.CascadeClassifier(nose_cascade_path)
         self.current_folder_path = None
-        self.set_camera_properties(1, 1)
+        self.set_camera_properties(w, h)
         self.queue = queue
         self.path = path
         self.IP = IP
@@ -217,6 +241,45 @@ class FaceRecognition:
         file_path = os.path.join(folder_path, f"{timestamp}.jpg")
         cv2.imwrite(file_path, frame)
 
+    def send_folder(self,first_face,frame,client):
+        if self.recognition:
+            distance = abs(self.xmd_face - self.xmd_nose)
+
+            if distance > 5 or first_face is None:
+                self.put_text_on_frame(frame, 'Warning!!', 3)
+
+                time_now = time.strftime("(%d-%m-%Y) (%H-%M-%S)", time.localtime())
+
+                if not self.current_folder_path:
+                    self.current_folder_path = os.path.join(self.path, f'Warning_{self.warning_count}')
+                    self.create_folder(self.current_folder_path)
+
+                    if os.path.exists(os.path.join(self.path, f'Warning_{self.warning_count - 1}')):
+                        send_thread = threading.Thread(target=client.send_images,
+                                                       args=(
+                                                       os.path.join(self.path, f'Warning_{self.warning_count - 1}'),
+                                                       f'Warning_{self.warning_count - 1}'), )
+
+                        send_thread.start()
+                        print(f'Sended Warning_{self.warning_count - 1}')
+
+                    self.warning_count += 1
+
+                self.take_photos(frame, time_now, self.current_folder_path)
+
+            else:
+                # Prepare for the next folder
+                self.current_folder_path = None  # Reset to None
+        else:
+            if cv2.waitKey(25) & 0xFF == ord('q'):
+                    if self.warning_count > 1:
+                        send_thread = threading.Thread(target=client.send_images,
+                                                       args=(
+                                                           os.path.join(self.path, f'Warning_{self.warning_count - 1}'),
+                                                           f'Warning_{self.warning_count - 1}'), )
+                        send_thread.start()
+                    #break
+                
     def run_face_recognition(self):
         try:
             client = Client()
@@ -224,6 +287,10 @@ class FaceRecognition:
             client.send_info(self.name,self.num,self.class_)
             while self.cap.isOpened():
                 ret, frame = self.cap.read()
+                if not ret:
+                    print("Error: Unable to read frame from the camera.")
+                    break
+
                 size = frame.shape
 
                 gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
@@ -249,15 +316,15 @@ class FaceRecognition:
                     x_face, y_face, w_face, h_face = first_face
                     x1_face = x_face + w_face
                     y1_face = y_face + h_face
-                    xmd_face = round(x_face + w_face / 2)
+                    self.xmd_face = round(x_face + w_face / 2)
 
                     x_nose, y_nose, w_nose, h_nose = first_nose
-                    xmd_nose, ymd_nose = x_nose + w_nose // 2, y_nose + h_nose // 2
+                    self.xmd_nose, ymd_nose = x_nose + w_nose // 2, y_nose + h_nose // 2
 
-                    self.x_border = round(min((size[1] - w_face) / 2 + 5, self.x_border))
-                    self.y_border = round(min((size[0] - h_face) / 2 + 5, self.y_border))
-                    self.x1_border = round(max((size[1] + w_face) / 2 + 5, self.x1_border))
-                    self.y1_border = round(max((size[0] + h_face) / 2 + 5, self.y1_border))
+                    self.x_border = round(min((size[1] - w_face) / 2 + 10, self.x_border))
+                    self.y_border = round(min((size[0] - h_face) / 2 + 10, self.y_border))
+                    self.x1_border = round(max((size[1] + w_face) / 2 + 10, self.x1_border))
+                    self.y1_border = round(max((size[0] + h_face) / 2 + 10, self.y1_border))
 
                     if not (self.x_border < x_face and self.y_border < y_face and
                             self.x1_border > x1_face and self.y1_border > y1_face):
@@ -269,44 +336,13 @@ class FaceRecognition:
 
                         self.put_text_on_frame(frame, 'Please move your face into frame!', 1)
                 
-##                if self.recognition:
-                    #distance = abs(xmd_face - xmd_nose)
-
-##                    if distance > 4 or first_face is None:
-##                        self.put_text_on_frame(frame, 'Warning!!', 3)
-##
-##                        time_now = time.strftime("(%d-%m-%Y) (%H-%M-%S)", time.localtime())
-##
-##                        if not self.current_folder_path:
-##                            self.current_folder_path = os.path.join(self.path, f'Warning_{self.warning_count}')
-##                            self.create_folder(self.current_folder_path)
-
-##                            if os.path.exists(os.path.join(self.path, f'Warning_{self.warning_count - 1}')):
-##                                send_thread = threading.Thread(target=client.send_images,
-##                                                               args=(
-##                                                               os.path.join(self.path, f'Warning_{self.warning_count - 1}'),
-##                                                               f'Warning_{self.warning_count - 1}'), )
-##
-##                                send_thread.start()
-
-##                            self.warning_count += 1
-##
-##                        self.take_photos(frame, time_now, self.current_folder_path)
-##
-##                    else:
-##                        # Prepare for the next folder
-##                        self.current_folder_path = None  # Reset to None
-                client.video_loop(frame)
                 self.client_ui.img_config(frame)
 
-                if cv2.waitKey(25) & 0xFF == ord('q'):
-                    if self.warning_count > 1:
-                        send_thread = threading.Thread(target=client.send_images,
-                                                       args=(
-                                                           os.path.join(self.path, f'Warning_{self.warning_count - 1}'),
-                                                           f'Warning_{self.warning_count - 1}'), )
-                        send_thread.start()
-                    break
+                threading.Thread(target=client.video_loop, args=(frame,)).start()
+                    
+                threading.Thread(target=self.send_folder, args=(first_face,frame,client,)).start()
+            
+                                
 
             # Release the video capture object
             self.cap.release()
