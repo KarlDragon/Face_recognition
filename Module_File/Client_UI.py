@@ -56,9 +56,7 @@ class Client:
         
     def video_loop(self,frame):
         with self.lock_video_loop:
-            print("IMG")
             data = pickle.dumps(frame)
-
             # Gửi kích thước frame đến máy khách
             self.video_socket.sendall(struct.pack("L", len(data)) + data)
 
@@ -367,8 +365,8 @@ class FaceRecognition:
                 
                 self.client_ui.img_config(frame)
                               
-                threading.Thread(target=client.video_loop, args=(frame,)).start()
-                time.sleep(1)
+                #threading.Thread(target=client.video_loop, args=(frame,)).start()
+                #time.sleep(1)
                 threading.Thread(target=self.send_folder, args=(first_face,frame,client,)).start()
             
                 threading.Event().wait(0.1)                
