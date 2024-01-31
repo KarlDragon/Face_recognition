@@ -14,7 +14,7 @@ import subprocess
 class UI_UX:
     def __init__(self, root):
         self.root = root
-        self.root.title("Ứng dụng hỗ trợ kiểm tra")
+        self.root.title("Ứnwg dụng hỗ trợ kiểm tra")
         self.root.resizable(False, False)
         self.screen_width = self.root.winfo_screenwidth()
         self.screen_height = self.root.winfo_screenheight()
@@ -154,35 +154,12 @@ class Server_UI(UI_UX):
         self.tk_background = ImageTk.PhotoImage(Image.open(background_path).resize((self.distance_x,self.distance_y)))
         tk.Label(self.frame, image=self.tk_background).pack(side=tk.TOP,fill=tk.BOTH, expand=True)
 
-    def update_image_in_main_thread(self):
-        try:
-            img = self.image_queue.get_nowait()
-            self.back_ground.configure(image=img)
-            self.back_ground.image = img
-        except queue.Empty:
-            pass
-
-        # Schedule the next update on the main thread immediately
-        self.root.after(0, self.update_image_in_main_thread)
-
     def show_cam(self, key):
         try:
-            self.display_image(key)
-            self.update_image_in_main_thread()
+            cv2.imshow("",key)
         except Exception as e:
             print(f"Error in show_cam: {e}")
-
-    def display_image(self, key):
-        try:
-            image_data = self.server.image_dict[key]
-            image = ImageTk.PhotoImage(
-                Image.fromarray(cv2.cvtColor(image_data, cv2.COLOR_BGR2RGB))
-            )
-            # Put the image in the queue
-            self.image_queue.put(image)
-        except Exception as e:
-            print(f"Error displaying image: {e}")
-      
+ 
     def cam(self, cam_num):
         for widget in self.frame.winfo_children():
             widget.destroy()
@@ -335,7 +312,6 @@ class Server:
     def handle_video(self, user_cam, conn):
         try:
             while True:
-                print("VVVVVVV")
                 data = b""
                 payload_size = struct.calcsize("L")
                 while len(data) < payload_size:
