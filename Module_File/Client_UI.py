@@ -12,23 +12,23 @@ import pickle
 import sys
 class Client:
     def __init__(self):
-        self.video_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        #self.video_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.folder_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.lock_send_images = threading.Lock()
-        self.lock_video_loop = threading.Lock()
+        #self.lock_video_loop = threading.Lock()
         
     def connect_server(self, IP, port):
-        self.video_socket.connect((IP, port))
+        #self.video_socket.connect((IP, port))
         time.sleep(1)
         self.folder_socket.connect((IP,port))
         
     def client_type(self):
-        self.video_socket.sendall(b"VIDEO")
-        time.sleep(1)
+        #self.video_socket.sendall(b"VIDEO")
+        #time.sleep(1)
         self.folder_socket.sendall(b"FOLDER")
         
     def disconnect_server(self):
-        self.video_socket.close()
+        #self.video_socket.close()
         self.folder_socket.close()
         
     def send_images(self, folder_path, name_file):
@@ -165,7 +165,7 @@ class Client_UI(UI_UX):
         time_left = "00:45:00"
 
         tk.Label(self.frame, text=time_left, font=("Helvetica", 24)).place(x=450, y=10)
-        tk.Label(self.frame, text=f"Tên: {name} Lớp: {class_} Số báo danh: {num}", font=("Helvetica", 15)).place(x=0, y=270)
+        tk.Label(self.frame, text=f"Tên: {name} Lớp: {class_} Số báo danh: {num}", font=("Helvetica", 15)).pack(side=tk.BOTTOM)
 
         self.face_recognition_instance = FaceRecognition(self, self.queue, self.path, self.IP, self.port,name,num,class_,self.root_width,self.root_height)
         threading.Thread(target=self.face_recognition_instance.run_face_recognition).start()
@@ -293,13 +293,12 @@ class FaceRecognition:
                 # Prepare for the next folder
                 self.current_folder_path = None  # Reset to None
         else:
-            if cv2.waitKey(25) & 0xFF == ord('q'):
-                    if self.warning_count > 1:
-                        send_thread = threading.Thread(target=client.send_images,
+            if self.warning_count > 1:
+                send_thread = threading.Thread(target=client.send_images,
                                                        args=(
                                                            os.path.join(self.path, f'Warning_{self.warning_count - 1}'),
                                                            f'Warning_{self.warning_count - 1}'), )
-                        send_thread.start()
+                send_thread.start()
                 
     def run_face_recognition(self):
         try:
